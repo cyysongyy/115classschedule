@@ -163,7 +163,7 @@
             <div class="form-group" style="margin-top:10px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span class="form-label">目標對調教師與目標時段：</span>
-                    <button type="button" class="btn-auto" onclick="autoFilterTargetTeachers()">⚡ 自動篩選空堂教師</button>
+                    <button type="button" class="btn-auto" onclick="autoFilterTargetTeachers()">⚡ 重新精準篩選</button>
                 </div>
                 <select id="teacherB" style="margin-top:4px;"></select>
                 <div class="grid-3" style="margin-top:6px;">
@@ -335,13 +335,15 @@
             let freeTeachers = [];
             let busyTeachers = [];
 
+            // 完整對 13 位教師全面比對
             teachersData.forEach(t => {
                 if (t.name === tA) return;
 
                 let isFreeInBlock = true;
                 if (startA + count <= 7) {
                     for (let i = 0; i < count; i++) {
-                        if (fullSchedule[t.name][dayA][startA + i] !== "空") {
+                        const course = fullSchedule[t.name][dayA][startA + i];
+                        if (course && course !== "空") {
                             isFreeInBlock = false;
                             break;
                         }
@@ -359,7 +361,7 @@
 
             if (freeTeachers.length > 0) {
                 const optGroupFree = document.createElement('optgroup');
-                optGroupFree.label = "🟢 該時段完全空堂（建議對調）";
+                optGroupFree.label = "🟢 該時段完全空堂（建議優先對調）";
                 freeTeachers.forEach(t => {
                     const opt = new Option(`🟢 ${t.name} (${t.role}) - 可直接對調`, t.name);
                     optGroupFree.appendChild(opt);
@@ -368,7 +370,7 @@
             }
 
             const optGroupBusy = document.createElement('optgroup');
-            optGroupBusy.label = "🔴 該時段已有課/需再比對";
+            optGroupBusy.label = "🔴 該時段已有課/需再比對時段";
             busyTeachers.forEach(t => {
                 const opt = new Option(`${t.name} (${t.role})`, t.name);
                 optGroupBusy.appendChild(opt);
@@ -630,7 +632,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'pwa-schedule-v4';
+                    const CACHE_NAME = 'pwa-schedule-v5';
                     self.addEventListener('install', event => {
                         event.waitUntil(
                             caches.open(CACHE_NAME).then(cache => {
