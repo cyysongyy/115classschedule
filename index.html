@@ -50,6 +50,9 @@
         
         .btn-secondary { background: #64748b; }
         .btn-danger { background: #ef4444; }
+        
+        .quick-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+        .quick-tag-btn { width: auto; padding: 4px 10px; font-size: 0.78rem; background: #e2e8f0; color: #334155; border-radius: 12px; margin: 0; font-weight: normal; }
     </style>
 </head>
 <body>
@@ -74,11 +77,22 @@
             <div id="visualTableContainer" class="table-responsive"></div>
         </div>
 
-        <!-- 2. 全域搜尋 -->
+        <!-- 2. 進階強效搜尋引擎 -->
         <div class="card">
-            <div class="card-title">🔍 2. 跨課表全域搜尋</div>
+            <div class="card-title">🔍 2. 智慧全域搜尋（教師 / 班級 / 科目）</div>
             <div class="search-box">
-                <input type="text" id="globalSearchInput" placeholder="輸入教師名(如:幸華)、班級或科目..." oninput="liveSearch()">
+                <input type="text" id="globalSearchInput" placeholder="請輸入教師(如:幸華)、班級(如:二甲)或科目(如:體育)..." oninput="liveSearch()">
+            </div>
+            <div class="quick-tags">
+                <span style="font-size:0.75rem; color:#64748b; align-self:center;">快速搜尋：</span>
+                <button class="quick-tag-btn" onclick="quickSearch('一甲')">一甲</button>
+                <button class="quick-tag-btn" onclick="quickSearch('二甲')">二甲</button>
+                <button class="quick-tag-btn" onclick="quickSearch('三甲')">三甲</button>
+                <button class="quick-tag-btn" onclick="quickSearch('四甲')">四甲</button>
+                <button class="quick-tag-btn" onclick="quickSearch('五甲')">五甲</button>
+                <button class="quick-tag-btn" onclick="quickSearch('六甲')">六甲</button>
+                <button class="quick-tag-btn" onclick="quickSearch('體育')">體育</button>
+                <button class="quick-tag-btn" onclick="quickSearch('自然')">自然</button>
             </div>
             <div id="searchResults" class="res-box" style="display:none;"></div>
         </div>
@@ -320,41 +334,9 @@
             }
         }
 
-        function exportData() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullSchedule, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `課表備份_${new Date().toISOString().slice(0,10)}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
-
-        function importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedSchedule = JSON.parse(e.target.result);
-                    fullSchedule = importedSchedule;
-                    saveToStorage();
-                    renderVisualSchedule();
-                    alert("✅ 課表資料匯入成功！");
-                } catch (err) {
-                    alert("⚠️ 檔案格式錯誤，匯入失敗。");
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function resetData() {
-            if (confirm("確定要將所有課表還原為當初校對的預設值嗎？")) {
-                fullSchedule = JSON.parse(JSON.stringify(defaultSchedule));
-                saveToStorage();
-                renderVisualSchedule();
-                alert("已成功還原預設課表！");
-            }
+        function quickSearch(keyword) {
+            document.getElementById('globalSearchInput').value = keyword;
+            liveSearch();
         }
 
         function liveSearch() {
@@ -362,32 +344,38 @@
             const res = document.getElementById('searchResults');
             if(!query) { res.style.display = 'none'; return; }
             
-            let matched = [];
+            let resultsHTML = '';
+            let totalHits = 0;
+
             teachersData.forEach(t => {
-                let hitDays = [];
+                let matches = [];
                 ["一", "二", "三", "四", "五"].forEach(day => {
                     fullSchedule[t.name][day].forEach((c, idx) => {
-                        if (c.toLowerCase().includes(query)) {
-                            hitDays.push(`週${day}第${idx+1}節[${c}]`);
+                        if (c !== "空" && c.toLowerCase().includes(query)) {
+                            matches.push(`週${day}第${idx+1}節 【${c}】`);
                         }
                     });
                 });
-                if (t.name.includes(query) || t.role.includes(query) || hitDays.length > 0) {
-                    matched.push({ ...t, hits: hitDays });
+
+                if (t.name.toLowerCase().includes(query) || t.role.toLowerCase().includes(query) || matches.length > 0) {
+                    totalHits++;
+                    let details = matches.length > 0 ? `<div style="font-size:0.8rem; color:#2563eb; margin-top:2px;">• 命中課表: ${matches.join(', ')}</div>` : '';
+                    resultsHTML += `<div class="item-row" style="flex-direction:column; align-items:flex-start;">
+                        <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+                            <span><b>${t.name}</b> <small>(${t.role})</small></span>
+                            <span class="tag tag-info">每週${t.total}節</span>
+                        </div>
+                        ${details}
+                    </div>`;
                 }
             });
 
             res.style.display = 'block';
-            if(matched.length === 0) {
-                res.innerHTML = `<div style="color:#64748b; text-align:center;">無此關鍵字資料</div>`;
-                return;
+            if (totalHits === 0) {
+                res.innerHTML = `<div style="color:#64748b; text-align:center; padding:8px;">🔍 找不到與「<b>${query}</b>」相關的教師、班級或科目</div>`;
+            } else {
+                res.innerHTML = `<div style="font-size:0.8rem; color:#64748b; margin-bottom:6px;">共搜尋到 ${totalHits} 筆結果：</div>` + resultsHTML;
             }
-            let html = ``;
-            matched.forEach(t => {
-                let hitText = t.hits.length > 0 ? `<br><span style="font-size:0.75rem; color:#2563eb;">匹配課表: ${t.hits.join(', ')}</span>` : '';
-                html += `<div class="item-row"><div><b>${t.name}</b> (${t.role})${hitText}</div><span class="tag tag-info">每週${t.total}節</span></div>`;
-            });
-            res.innerHTML = html;
         }
 
         function findFreeTeachers() {
@@ -448,10 +436,47 @@
             res.innerHTML = html;
         }
 
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullSchedule, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `課表備份_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedSchedule = JSON.parse(e.target.result);
+                    fullSchedule = importedSchedule;
+                    saveToStorage();
+                    renderVisualSchedule();
+                    alert("✅ 課表資料匯入成功！");
+                } catch (err) {
+                    alert("⚠️ 檔案格式錯誤，匯入失敗。");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetData() {
+            if (confirm("確定要將所有課表還原為當初校對的預設值嗎？")) {
+                fullSchedule = JSON.parse(JSON.stringify(defaultSchedule));
+                saveToStorage();
+                renderVisualSchedule();
+                alert("已成功還原預設課表！");
+            }
+        }
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final-editable-v1').then(c => c.addAll(['./']))));
+                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final-search-v1').then(c => c.addAll(['./']))));
                     self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
                 `;
                 const blob = new Blob([swCode], { type: 'application/javascript' });
