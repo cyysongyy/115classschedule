@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>115學年 智慧課表與調課 PWA</title>
-    <!-- PWA 設定 -->
+    <title>115學年 全校課表視覺化與調課系統</title>
+    <!-- 離線 PWA 設定 -->
     <meta name="theme-color" content="#1e293b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,20 +14,24 @@
     <style>
         :root { --primary: #2563eb; --success: #16a34a; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --border: #cbd5e1; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 12px; background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
+        
+        .app-container { max-width: 900px; margin: 0 auto; }
         .app-header { text-align: center; padding: 4px 0; margin-bottom: 8px; }
-        .app-header h1 { font-size: 1.2rem; margin: 0; color: #1e293b; }
+        .app-header h1 { font-size: 1.25rem; margin: 0; color: #1e293b; }
         
         .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border); }
         .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #334155; display: flex; align-items: center; justify-content: space-between; }
+        
+        .form-group { margin-bottom: 8px; }
+        .form-label { font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px; }
         
         input, select, button { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.92rem; background: #fff; box-sizing: border-box; }
         button { background: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 8px; }
         button:active { opacity: 0.9; }
 
-        .search-box { position: relative; margin-bottom: 6px; }
-        .search-input { padding-left: 36px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%3A64748b' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E") no-repeat 12px center; }
-
+        .search-box { position: relative; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        
         .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 4px; }
         .tag-free { background: #dcfce7; color: #15803d; }
         .tag-busy { background: #fee2e2; color: #b91c1c; }
@@ -36,100 +40,152 @@
         .res-box { margin-top: 10px; font-size: 0.88rem; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 10px; }
         .item-row { padding: 8px; border-bottom: 1px solid #f1f5f9; border-radius: 6px; margin-bottom: 4px; background: #fafafa; display: flex; justify-content: space-between; align-items: center; }
         .swap-card { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 8px; margin-top: 8px; }
+        .error-card { background: #fff1f2; border: 1px solid #fecdd3; padding: 10px; border-radius: 8px; margin-top: 8px; }
+
+        /* 課表視覺化表單樣式 */
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }
+        .schedule-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.75rem; min-width: 650px; }
+        .schedule-table th, .schedule-table td { border: 1px solid #e2e8f0; padding: 6px 2px; }
+        .schedule-table th { background-color: #334155; color: white; font-weight: bold; }
+        .cell-free { background-color: #f0fdf4; color: #166534; font-weight: 500; }
+        .cell-busy { background-color: #eff6ff; color: #1e40af; font-weight: bold; }
+        .cell-off { background-color: #f1f5f9; color: #94a3b8; }
+        .day-header { background-color: #475569; color: white; }
     </style>
 </head>
 <body>
 
-    <div class="app-header">
-        <h1>115學年 課表與智慧調課 PWA</h1>
-    </div>
-
-    <!-- 功能一：跨課表全域萬能搜尋 -->
-    <div class="card">
-        <div class="card-title">🔍 1. 跨課表全域搜尋</div>
-        <div class="search-box">
-            <input type="text" id="globalSearchInput" class="search-input" placeholder="輸入教師名、班級(如:五甲)或科目(如:自然)..." oninput="liveSearch()">
+    <div class="app-container">
+        <!-- 標題區塊 -->
+        <div class="app-header">
+            <h1>115學年 課表視覺化與調課 PWA</h1>
         </div>
-        <div id="searchResults" class="res-box" style="display:none;"></div>
-    </div>
 
-    <!-- 功能二：特定節次空堂自動比對 -->
-    <div class="card">
-        <div class="card-title">⚡ 2. 尋找空堂教師（選擇時段）</div>
-        <div class="grid-2">
-            <select id="slotDay">
-                <option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option>
-            </select>
-            <select id="slotPeriod">
-                <option value="1">第 1 節</option><option value="2">第 2 節</option><option value="3">第 3 節</option><option value="4">第 4 節</option><option value="5">第 5 節</option><option value="6">第 6 節</option><option value="7">第 7 節</option>
-            </select>
-        </div>
-        <button onclick="findFreeTeachers()">即時比對空堂人員</button>
-        <div id="slotResults" class="res-box" style="display:none;"></div>
-    </div>
-
-    <!-- 功能三：雙向調課可行性評估 -->
-    <div class="card">
-        <div class="card-title">🔄 3. 雙向調課試算</div>
-        <div style="margin-bottom:8px;">
-            <label style="font-size:0.8rem; font-weight:bold;">發起教師與課表：</label>
-            <select id="teacherA" style="margin-top:4px;"></select>
-            <div class="grid-2" style="margin-top:6px;">
-                <select id="dayA"><option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option></select>
-                <select id="periodA"><option value="1">第1節</option><option value="2">第2節</option><option value="3">第3節</option><option value="4">第4節</option><option value="5">第5節</option><option value="6">第6節</option><option value="7">第7節</option></select>
+        <!-- 新增：整體課表視覺化區塊 -->
+        <div class="card">
+            <div class="card-title">
+                <span>📊 1. 全校視覺化總課表</span>
+                <select id="viewDaySelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
+                    <option value="一">星期一</option>
+                    <option value="二">星期二</option>
+                    <option value="三">星期三</option>
+                    <option value="四">星期四</option>
+                    <option value="五">星期五</option>
+                </select>
             </div>
+            <div id="visualTableContainer" class="table-responsive"></div>
         </div>
 
-        <div style="margin-top:10px; margin-bottom:8px;">
-            <label style="font-size:0.8rem; font-weight:bold;">目標對調教師與節次：</label>
-            <select id="teacherB" style="margin-top:4px;"></select>
-            <div class="grid-2" style="margin-top:6px;">
-                <select id="dayB"><option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option></select>
-                <select id="periodB"><option value="1">第1節</option><option value="2">第2節</option><option value="3">第3節</option><option value="4">第4節</option><option value="5">第5節</option><option value="6">第6節</option><option value="7">第7節</option></select>
+        <!-- 功能 2：跨課表萬能搜尋 -->
+        <div class="card">
+            <div class="card-title">🔍 2. 跨課表全域搜尋</div>
+            <div class="search-box">
+                <input type="text" id="globalSearchInput" placeholder="輸入教師名(如:雅玲)、班級或科目..." oninput="liveSearch()">
             </div>
+            <div id="searchResults" class="res-box" style="display:none;"></div>
         </div>
 
-        <button onclick="checkSwap()" style="background:var(--success);">開始評估互調可行性</button>
-        <div id="swapResults" class="res-box" style="display:none;"></div>
+        <!-- 功能 3：空堂自動比對 -->
+        <div class="card">
+            <div class="card-title">⚡ 3. 尋找空堂教師（選擇時段）</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <select id="slotDay">
+                        <option value="一">星期一</option>
+                        <option value="二">星期二</option>
+                        <option value="三">星期三</option>
+                        <option value="四">星期四</option>
+                        <option value="五">星期五</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select id="slotPeriod">
+                        <option value="1">第 1 節</option>
+                        <option value="2">第 2 節</option>
+                        <option value="3">第 3 節</option>
+                        <option value="4">第 4 節</option>
+                        <option value="5">第 5 節</option>
+                        <option value="6">第 6 節</option>
+                        <option value="7">第 7 節</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="findFreeTeachers()">即時比對空堂人員</button>
+            <div id="slotResults" class="res-box" style="display:none;"></div>
+        </div>
+
+        <!-- 功能 4：雙向調課試算 -->
+        <div class="card">
+            <div class="card-title">🔄 4. 雙向調課試算</div>
+            
+            <div class="form-group">
+                <span class="form-label">發起教師與課表：</span>
+                <select id="teacherA"></select>
+                <div class="grid-2" style="margin-top:6px;">
+                    <select id="dayA">
+                        <option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option>
+                    </select>
+                    <select id="periodA">
+                        <option value="1">第1節</option><option value="2">第2節</option><option value="3">第3節</option><option value="4">第4節</option><option value="5">第5節</option><option value="6">第6節</option><option value="7">第7節</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top:10px;">
+                <span class="form-label">目標對調教師與節次：</span>
+                <select id="teacherB"></select>
+                <div class="grid-2" style="margin-top:6px;">
+                    <select id="dayB">
+                        <option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option>
+                    </select>
+                    <select id="periodB">
+                        <option value="1">第1節</option><option value="2">第2節</option><option value="3">第3節</option><option value="4">第4節</option><option value="5">第5節</option><option value="6">第6節</option><option value="7">第7節</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="checkSwap()" style="background:var(--success);">開始評估互調可行性</button>
+            <div id="swapResults" class="res-box" style="display:none;"></div>
+        </div>
     </div>
 
     <script>
-        // 完全校對後的教師與數據清單 (總節數 + 理論空堂數，基準29節)
+        // 完全去除姓氏之教師資料清單 (以名代表，基準29節)[cite: 2]
         const teachersData = [
-            { name: "黃雅玲", role: "主任", total: 5, freeCount: 24 },
-            { name: "陳英曉", role: "主任", total: 5, freeCount: 24 },
-            { name: "楊凱棋", role: "一甲導師", total: 14, freeCount: 15 },
-            { name: "蔡幸華", role: "二甲導師", total: 13, freeCount: 16 },
-            { name: "王瑞明", role: "三甲導師", total: 16, freeCount: 13 },
-            { name: "黃于玲", role: "四甲導師", total: 16, freeCount: 13 },
-            { name: "吳惠雅", role: "五甲導師", total: 16, freeCount: 13 },
-            { name: "王怡文", role: "六甲導師", total: 16, freeCount: 13 },
-            { name: "陳永芝", role: "科任", total: 20, freeCount: 9 },
-            { name: "羅昭倫", role: "科任", total: 20, freeCount: 9 },
-            { name: "林瑞芳", role: "科任", total: 10, freeCount: 19 },
-            { name: "呂美純", role: "鐘點", total: 13, freeCount: 16 },
-            { name: "楊高雄", role: "台語", total: 4, freeCount: 25 }
+            { name: "雅玲", role: "主任", total: 5, freeCount: 24 },
+            { name: "英曉", role: "主任", total: 5, freeCount: 24 },
+            { name: "凱棋", role: "一甲導師", total: 14, freeCount: 15 },
+            { name: "幸華", role: "二甲導師", total: 13, freeCount: 16 },
+            { name: "瑞明", role: "三甲導師", total: 16, freeCount: 13 },
+            { name: "于玲", role: "四甲導師", total: 16, freeCount: 13 },
+            { name: "惠雅", role: "五甲導師", total: 16, freeCount: 13 },
+            { name: "怡文", role: "六甲導師", total: 16, freeCount: 13 },
+            { name: "永芝", role: "科任", total: 20, freeCount: 9 },
+            { name: "昭倫", role: "科任", total: 20, freeCount: 9 },
+            { name: "瑞芳", role: "科任", total: 10, freeCount: 19 },
+            { name: "美純", role: "鐘點", total: 13, freeCount: 16 },
+            { name: "高雄", role: "台語", total: 4, freeCount: 25 }
         ];
 
-        // 70節課表矩陣
+        // 70節全校精準課表矩陣
         const fullSchedule = {
-            "黃雅玲": { "一": ["三社", "空", "空", "五社", "空", "空", "三社"], "二": ["空", "空", "空", "五社", "空", "空", "空"], "三": ["空", "空", "空", "空"], "四": ["空", "空", "空", "空", "空", "空", "空"], "五": ["空", "三社", "空", "空", "空", "空", "空"] },
-            "陳英曉": { "一": ["空", "六數", "空", "空", "空", "空", "空"], "二": ["六數", "空", "空", "空", "空", "空", "空"], "三": ["空", "空", "空", "六綜"], "四": ["空", "空", "六綜", "空", "空", "空", "空"], "五": ["六數", "空", "空", "空", "空", "空", "空"] },
-            "楊凱棋": { "一": ["一國", "一數", "一國", "一活", "放學", "放學", "放學"], "二": ["一數", "一彈", "一鄉", "一活", "一美", "一美", "一彈"], "三": ["一國", "一國", "一數", "一國"], "四": ["一數", "一美", "一美", "一活", "放學", "放學", "放學"], "五": ["一活", "一活", "一國", "一國", "放學", "放學", "放學"] },
-            "蔡幸華": { "一": ["二數", "二國", "空", "二國", "放學", "放學", "放學"], "二": ["二活", "二活", "二活", "二美", "二美", "二彈", "二體"], "三": ["二數", "二數", "二國", "二國"], "四": ["二數", "二國", "二國", "二國", "放學", "放學", "放學"], "五": ["二活", "二國", "二國", "二數", "放學", "放學", "放學"] },
-            "王瑞明": { "一": ["三數", "三國", "空", "三社", "三國", "三彈", "空"], "二": ["三體", "三體", "空", "三自", "三資", "三音", "三國"], "三": ["三國", "三數", "三綜", "三國"], "四": ["三數", "三國", "三自", "三國", "三國", "三綜", "三體"], "五": ["三數", "三社", "三社", "三數", "三自", "三彈", "三彈"] },
-            "黃于玲": { "一": ["四國", "四社", "四彈", "空", "四美", "四體", "四數"], "二": ["四數", "四英", "四社", "四社", "四美", "四美", "四健"], "三": ["四國", "四社", "四綜", "四國"], "四": ["四英", "四國", "四音", "四國", "四自", "四綜", "四資"], "五": ["四數", "四自", "四綜", "四數", "四彈", "四體", "四彈"] },
-            "吳惠雅": { "一": ["五自", "五國", "五國", "空", "五綜", "五體", "五數"], "二": ["五國", "五彈", "五鄉", "空", "五彈", "五彈", "五彈"], "三": ["五自", "五國", "五社", "五數"], "四": ["五數", "五體", "五國", "五美", "五英", "五彈", "五彈"], "五": ["五國", "五社", "五社", "五數", "五美", "五音", "五數"] },
-            "王怡文": { "一": ["六國", "空", "六國", "六社", "六美", "六音", "六數"], "二": ["空", "六健", "六鄉", "六社", "六彈", "六彈", "六體"], "三": ["六國", "六健", "六社", "六綜"], "四": ["六國", "六英", "六綜", "六美", "六彈", "六彈", "六體"], "五": ["六數", "六自", "六國", "六數", "六彈", "六自", "六社"] },
-            "陳永芝": { "一": ["空", "空", "空", "空", "空", "六音", "空"], "二": ["三英", "英語", "空", "空", "空", "三音", "空"], "三": ["空", "空", "空", "空"], "四": ["四英", "六英", "四音", "空", "五英", "二音", "空"], "五": ["三英", "空", "空", "空", "五音", "五音", "一健"] },
-            "羅昭倫": { "一": ["空", "五自", "空", "空", "空", "體育", "空"], "二": ["體育", "體育", "空", "三自", "空", "空", "體育"], "三": ["五自", "空", "空", "空"], "四": ["空", "體育", "三自", "空", "四自", "空", "體育"], "五": ["空", "體育", "空", "空", "三自", "體育", "體育"] },
-            "林瑞芳": { "一": ["空", "空", "空", "空", "美勞", "美勞", "空"], "二": ["空", "空", "空", "美勞", "美勞", "美勞", "空"], "三": ["空", "空", "空", "空"], "四": ["空", "美勞", "美勞", "美勞", "空", "空", "空"], "五": ["空", "空", "空", "空", "美勞", "空", "空"] },
-            "呂美純": { "一": ["一彈", "一彈", "二彈", "二彈", "空", "空", "空"], "二": ["空", "空", "空", "空", "空", "二彈", "一彈"], "三": ["空", "空", "空", "空"], "四": ["二健", "一健", "空", "空", "三資", "一彈", "一彈"], "五": ["空", "空", "空", "空", "六資", "五資", "三資"] },
-            "楊高雄": { "一": ["五鄉", "三鄉", "空", "空", "空", "空", "空"], "二": ["空", "空", "鄉土", "空", "空", "空", "空"], "三": ["空", "空", "空", "空"], "四": ["空", "空", "空", "空", "空", "空", "空"], "五": ["空", "空", "空", "空", "空", "空", "空"] }
+            "雅玲": { "一": ["三社", "空", "空", "五社", "空", "空", "三社"], "二": ["空", "空", "空", "五社", "空", "空", "空"], "三": ["空", "空", "空", "空"], "四": ["空", "空", "空", "空", "空", "空", "空"], "五": ["空", "三社", "空", "空", "空", "空", "空"] },
+            "英曉": { "一": ["空", "六數", "空", "空", "空", "空", "空"], "二": ["六數", "空", "空", "空", "空", "空", "空"], "三": ["空", "空", "空", "六綜"], "四": ["空", "空", "六綜", "空", "空", "空", "空"], "五": ["六數", "空", "空", "空", "空", "空", "空"] },
+            "凱棋": { "一": ["一國", "一數", "一國", "一活", "放學", "放學", "放學"], "二": ["一數", "一彈", "一鄉", "一活", "一美", "一美", "一彈"], "三": ["一國", "一國", "一數", "一國"], "四": ["一數", "一美", "一美", "一活", "放學", "放學", "放學"], "五": ["一活", "一活", "一國", "一國", "放學", "放學", "放學"] },
+            "幸華": { "一": ["二數", "二國", "空", "二國", "放學", "放學", "放學"], "二": ["二活", "二活", "二活", "二美", "二美", "二彈", "二體"], "三": ["二數", "二數", "二國", "二國"], "四": ["二數", "二國", "二國", "二國", "放學", "放學", "放學"], "五": ["二活", "二國", "二國", "二數", "放學", "放學", "放學"] },
+            "瑞明": { "一": ["三數", "三國", "空", "三社", "三國", "三彈", "空"], "二": ["三體", "三體", "空", "三自", "三資", "三音", "三國"], "三": ["三國", "三數", "三綜", "三國"], "四": ["三數", "三國", "三自", "三國", "三國", "三綜", "三體"], "五": ["三數", "三社", "三社", "三數", "三自", "三彈", "三彈"] },
+            "于玲": { "一": ["四國", "四社", "四彈", "空", "四美", "四體", "四數"], "二": ["四數", "四英", "四社", "四社", "四美", "四美", "四健"], "三": ["四國", "四社", "四綜", "四國"], "四": ["四英", "四國", "四音", "四國", "四自", "四綜", "四資"], "五": ["四數", "四自", "四綜", "四數", "四彈", "四體", "四彈"] },
+            "惠雅": { "一": ["五自", "五國", "五國", "空", "五綜", "五體", "五數"], "二": ["五國", "五彈", "五鄉", "空", "五彈", "五彈", "五彈"], "三": ["五自", "五國", "五社", "五數"], "四": ["五數", "五體", "五國", "五美", "五英", "五彈", "五彈"], "五": ["五國", "五社", "五社", "五數", "五美", "五音", "五數"] },
+            "怡文": { "一": ["六國", "空", "六國", "六社", "六美", "六音", "六數"], "二": ["空", "六健", "六鄉", "六社", "六彈", "六彈", "六體"], "三": ["六國", "六健", "六社", "六綜"], "四": ["六國", "六英", "六綜", "六美", "六彈", "六彈", "六體"], "五": ["六數", "六自", "六國", "六數", "六彈", "六自", "六社"] },
+            "永芝": { "一": ["空", "空", "空", "空", "空", "六音", "空"], "二": ["三英", "英語", "空", "空", "空", "三音", "空"], "三": ["空", "空", "空", "空"], "四": ["四英", "六英", "四音", "空", "五英", "二音", "空"], "五": ["三英", "空", "空", "空", "五音", "五音", "一健"] },
+            "昭倫": { "一": ["空", "五自", "空", "空", "空", "體育", "空"], "二": ["體育", "體育", "空", "三自", "空", "空", "體育"], "三": ["五自", "空", "空", "空"], "四": ["空", "體育", "三自", "空", "四自", "空", "體育"], "五": ["空", "體育", "空", "空", "三自", "體育", "體育"] },
+            "瑞芳": { "一": ["空", "空", "空", "空", "美勞", "美勞", "空"], "二": ["空", "空", "空", "美勞", "美勞", "美勞", "空"], "三": ["空", "空", "空", "空"], "四": ["空", "美勞", "美勞", "美勞", "空", "空", "空"], "五": ["空", "空", "空", "空", "美勞", "空", "空"] },
+            "美純": { "一": ["一彈", "一彈", "二彈", "二彈", "空", "空", "空"], "二": ["空", "空", "空", "空", "空", "二彈", "一彈"], "三": ["空", "空", "空", "空"], "四": ["二健", "一健", "空", "空", "三資", "一彈", "一彈"], "五": ["空", "空", "空", "空", "六資", "五資", "三資"] },
+            "高雄": { "一": ["五鄉", "三鄉", "空", "空", "空", "空", "空"], "二": ["空", "空", "鄉土", "空", "空", "空", "空"], "三": ["空", "空", "空", "空"], "四": ["空", "空", "空", "空", "空", "空", "空"], "五": ["空", "空", "空", "空", "空", "空", "空"] }
         };
 
-        // 初始化下單
         window.onload = function() {
+            renderVisualSchedule();
             const selectA = document.getElementById('teacherA');
             const selectB = document.getElementById('teacherB');
             teachersData.forEach(t => {
@@ -139,84 +195,86 @@
             selectB.selectedIndex = 1;
         };
 
-        // 1. 全域搜尋
+        // 動態繪製全校視覺化課表矩陣
+        function renderVisualSchedule() {
+            const selectedDay = document.getElementById('viewDaySelect').value;
+            const container = document.getElementById('visualTableContainer');
+            
+            let html = `<table class="schedule-table"><thead><tr><th>教師</th>`;
+            for(let p = 1; p <= 7; p++) html += `<th>第${p}節</th>`;
+            html += `</tr></thead><tbody>`;
+
+            teachersData.forEach(t => {
+                html += `<tr><td><b>${t.name}</b><br><small style="color:#64748b;">${t.role}</small></td>`;
+                const dayCourses = fullSchedule[t.name][selectedDay] || ["空","空","空","空","空","空","空"];
+                
+                for(let p = 0; p < 7; p++) {
+                    const c = dayCourses[p] || "空";
+                    let cellClass = "cell-busy";
+                    if (c === "空") cellClass = "cell-free";
+                    else if (c === "放學") cellClass = "cell-off";
+                    
+                    html += `<td class="${cellClass}">${c}</td>`;
+                }
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
         function liveSearch() {
             const query = document.getElementById('globalSearchInput').value.trim().toLowerCase();
             const res = document.getElementById('searchResults');
             if(!query) { res.style.display = 'none'; return; }
-
             const matched = teachersData.filter(t => t.name.includes(query) || t.role.includes(query));
             res.style.display = 'block';
-
             if(matched.length === 0) {
-                res.innerHTML = `<div style="color:#64748b; text-align:center; padding:8px;">未尋得關鍵字「${query}」之資訊</div>`;
+                res.innerHTML = `<div style="color:#64748b; text-align:center;">無此關鍵字資料</div>`;
                 return;
             }
-
             let html = ``;
             matched.forEach(t => {
-                html += `
-                    <div class="item-row">
-                        <div>
-                            <b>${t.name}</b> (${t.role})<br>
-                            <span style="font-size:0.78rem; color:#64748b;">法定授課: ${t.total} 節 | 理論空堂: ${t.freeCount} 節</span>
-                        </div>
-                        <span class="tag tag-info">對照課表完成</span>
-                    </div>
-                `;
+                html += `<div class="item-row"><div><b>${t.name}</b> (${t.role})<br><span style="font-size:0.78rem; color:#64748b;">授課: ${t.total} 節 | 理論空堂: ${t.freeCount} 節</span></div><span class="tag tag-info">對照完成</span></div>`;
             });
             res.innerHTML = html;
         }
 
-        // 2. 空堂自動比對
         function findFreeTeachers() {
             const day = document.getElementById('slotDay').value;
             const period = parseInt(document.getElementById('slotPeriod').value) - 1;
             const res = document.getElementById('slotResults');
-
-            let freeList = [];
-            let busyList = [];
-
+            let freeList = [], busyList = [];
             teachersData.forEach(t => {
                 const course = fullSchedule[t.name][day][period];
-                if (course === "空" || course === "放學") {
-                    freeList.push({ name: t.name, role: t.role, status: course });
-                } else {
-                    busyList.push({ name: t.name, course: course });
-                }
+                if (course === "空" || course === "放學") freeList.push({ name: t.name, role: t.role, status: course });
+                else busyList.push({ name: t.name, course: course });
             });
-
             res.style.display = 'block';
-            let html = `<div><b>週${day} 第 ${period+1} 節 比對：</b></div>`;
-            html += `<div style="margin-top:6px; color:#15803d; font-weight:bold;">🟢 無課/空堂 (${freeList.length}人)：</div>`;
-            
+            let html = `<div><b>週${day} 第 ${period+1} 節 比對結果：</b></div>`;
+            html += `<div style="margin-top:6px; color:#15803d; font-weight:bold;">🟢 空堂/無課 (${freeList.length}人)：</div>`;
             freeList.forEach(item => {
                 html += `<div class="item-row"><span><b>${item.name}</b> <small>(${item.role})</small></span><span class="tag tag-free">可調課</span></div>`;
             });
-
             html += `<div style="margin-top:8px; color:#b91c1c; font-weight:bold;">🔴 有課人員 (${busyList.length}人)：</div>`;
             busyList.forEach(item => {
                 html += `<div class="item-row"><span>${item.name}</span><span class="tag tag-busy">${item.course}</span></div>`;
             });
-
             res.innerHTML = html;
         }
 
-        // 3. 雙向調課試算
         function checkSwap() {
             const tA = document.getElementById('teacherA').value;
             const dayA = document.getElementById('dayA').value;
             const pA = parseInt(document.getElementById('periodA').value) - 1;
-
             const tB = document.getElementById('teacherB').value;
             const dayB = document.getElementById('dayB').value;
             const pB = parseInt(document.getElementById('periodB').value) - 1;
-
             const res = document.getElementById('swapResults');
             res.style.display = 'block';
 
             if(tA === tB) {
-                res.innerHTML = `<div style="color:#b91c1c; font-weight:bold;">⚠️ 請選擇不同的教師進行互調！</div>`;
+                res.innerHTML = `<div class="error-card" style="color:#b91c1c; font-weight:bold;">⚠️ 請選擇不同的教師進行互調！</div>`;
                 return;
             }
 
@@ -233,35 +291,18 @@
             html += `<div>👤 <b>${tB}</b>：週${dayB}第${pB+1}節 [${cB_SlotB}]</div>`;
 
             if (okA && okB) {
-                html += `
-                    <div class="swap-card">
-                        <div style="color:var(--success); font-weight:bold;">✅ 雙向調課可行！</div>
-                        <div style="font-size:0.82rem; margin-top:4px; color:#334155;">
-                            • ${tA} 週${dayB}第${pB+1}節 為空堂<br>
-                            • ${tB} 週${dayA}第${pA+1}節 為空堂<br>
-                            <b>建議：</b>時段無衝突，可提交調課申請。
-                        </div>
-                    </div>
-                `;
+                html += `<div class="swap-card"><div style="color:var(--success); font-weight:bold;">✅ 雙向調課可行！</div><div style="font-size:0.82rem; margin-top:4px;">• ${tA} 週${dayB}第${pB+1}節 為空堂<br>• ${tB} 週${dayA}第${pA+1}節 為空堂</div></div>`;
             } else {
-                html += `
-                    <div style="background:#fff1f2; border:1px solid #fecdd3; padding:10px; border-radius:8px; margin-top:8px;">
-                        <div style="color:#e11d48; font-weight:bold;">⚠️ 時間衝突警告：</div>
-                        <div style="font-size:0.82rem; margin-top:4px;">
-                            ${!okA ? `• ${tA} 在週${dayB}第${pB+1}節 已有課 [${cA_SlotB}]<br>` : ''}
-                            ${!okB ? `• ${tB} 在週${dayA}第${pA+1}節 已有課 [${cB_SlotA}]<br>` : ''}
-                        </div>
-                    </div>
-                `;
+                html += `<div class="error-card"><div style="color:#e11d48; font-weight:bold;">⚠️ 時間衝突警告：</div><div style="font-size:0.82rem; margin-top:4px;">${!okA ? `• ${tA} 在週${dayB}第${pB+1}節 已有課 [${cA_SlotB}]<br>` : ''}${!okB ? `• ${tB} 在週${dayA}第${pA+1}節 已有課 [${cB_SlotA}]<br>` : ''}</div></div>`;
             }
             res.innerHTML = html;
         }
 
-        // PWA 註冊 Service Worker
+        // 離線快取 Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final').then(c => c.addAll(['./']))));
+                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-visual-v1').then(c => c.addAll(['./']))));
                     self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
                 `;
                 const blob = new Blob([swCode], { type: 'application/javascript' });
