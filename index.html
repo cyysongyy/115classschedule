@@ -4,10 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>115學年 課表與智慧調課 PWA</title>
+    
+    <!-- PWA 標頭與主題設定 -->
     <meta name="theme-color" content="#1e293b">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="課表調課">
+    
+    <!-- 動態產生 Web App Manifest -->
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIjExNXNjaG9vbC1zY2hlZHVsZSIsCiAgInNob3J0X25hbWUiOiAi課表調課IiwKICAic3RhcnRfdXJsIjogIi4vIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjFiMmI2IiwKICAidGhlbWVfY29sb3IiOiAiIzFlMjkzYiIKfQ==">
 
     <style>
@@ -30,6 +34,7 @@
 
         .search-box { position: relative; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
         
         .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 4px; }
         .tag-free { background: #dcfce7; color: #15803d; }
@@ -131,37 +136,44 @@
             <div id="slotResults" class="res-box" style="display:none;"></div>
         </div>
 
-        <!-- 4. 雙向調課試算 -->
+        <!-- 4. 多節/區間連調試算 -->
         <div class="card">
-            <div class="card-title">🔄 4. 雙向調課試算</div>
+            <div class="card-title">🔄 4. 多節/區間連調試算</div>
             
             <div class="form-group">
-                <span class="form-label">發起教師與課表：</span>
+                <span class="form-label">發起教師與連調時段：</span>
                 <select id="teacherA"></select>
-                <div class="grid-2" style="margin-top:6px;">
+                <div class="grid-3" style="margin-top:6px;">
                     <select id="dayA">
                         <option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option>
                     </select>
                     <select id="periodA">
-                        <option value="1">第1節</option><option value="2">第2節</option><option value="3">第3節</option><option value="4">第4節</option><option value="5">第5節</option><option value="6">第6節</option><option value="7">第7節</option>
+                        <option value="1">起：第1節</option><option value="2">起：第2節</option><option value="3">起：第3節</option><option value="4">起：第4節</option><option value="5">起：第5節</option><option value="6">起：第6節</option><option value="7">起：第7節</option>
+                    </select>
+                    <select id="countA">
+                        <option value="1">連續 1 節</option>
+                        <option value="2">連續 2 節</option>
+                        <option value="3">連續 3 節</option>
+                        <option value="4">連續 4 節</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-group" style="margin-top:10px;">
-                <span class="form-label">目標對調教師與節次：</span>
+                <span class="form-label">目標對調教師與目標時段：</span>
                 <select id="teacherB"></select>
-                <div class="grid-2" style="margin-top:6px;">
+                <div class="grid-3" style="margin-top:6px;">
                     <select id="dayB">
                         <option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option>
                     </select>
                     <select id="periodB">
-                        <option value="1">第1節</option><option value="2">第2節</option><option value="3">第3節</option><option value="4">第4節</option><option value="5">第5節</option><option value="6">第6節</option><option value="7">第7節</option>
+                        <option value="1">起：第1節</option><option value="2">起：第2節</option><option value="3">起：第3節</option><option value="4">起：第4節</option><option value="5">起：第5節</option><option value="6">起：第6節</option><option value="7">起：第7節</option>
                     </select>
+                    <div style="font-size:0.75rem; color:#64748b; align-self:center; text-align:center;">(節數自動同步)</div>
                 </div>
             </div>
 
-            <button onclick="checkSwap()" style="background:var(--success);">開始評估互調可行性</button>
+            <button onclick="checkMultiSwap()" style="background:var(--success);">開始評估多節區間調課可行性</button>
             <div id="swapResults" class="res-box" style="display:none;"></div>
         </div>
 
@@ -316,7 +328,6 @@
             let html = ``;
 
             if (selectedTeacher === "ALL") {
-                // 全校視角：依單一星期顯示所有人
                 selectedDaySelect.style.display = "inline-block";
                 const selectedDay = selectedDaySelect.value;
                 
@@ -337,7 +348,6 @@
                 });
                 html += `</tbody></table>`;
             } else {
-                // 個人視角：隱藏星期選單，直接列出個人全週（週一~週五）課表
                 selectedDaySelect.style.display = "none";
                 const teacherObj = teachersData.find(t => t.name === selectedTeacher);
                 const days = ["一", "二", "三", "四", "五"];
@@ -440,13 +450,16 @@
             res.innerHTML = html;
         }
 
-        function checkSwap() {
+        function checkMultiSwap() {
             const tA = document.getElementById('teacherA').value;
             const dayA = document.getElementById('dayA').value;
-            const pA = parseInt(document.getElementById('periodA').value) - 1;
+            const startA = parseInt(document.getElementById('periodA').value) - 1;
+            const count = parseInt(document.getElementById('countA').value);
+
             const tB = document.getElementById('teacherB').value;
             const dayB = document.getElementById('dayB').value;
-            const pB = parseInt(document.getElementById('periodB').value) - 1;
+            const startB = parseInt(document.getElementById('periodB').value) - 1;
+
             const res = document.getElementById('swapResults');
             res.style.display = 'block';
 
@@ -455,22 +468,60 @@
                 return;
             }
 
-            const cA_SlotA = fullSchedule[tA][dayA][pA];
-            const cA_SlotB = fullSchedule[tA][dayB][pB];
-            const cB_SlotB = fullSchedule[tB][dayB][pB];
-            const cB_SlotA = fullSchedule[tB][dayA][pA];
+            if (startA + count > 7 || startB + count > 7) {
+                res.innerHTML = `<div class="error-card" style="color:#b91c1c; font-weight:bold;">⚠️ 超出當日最大節次(第7節)，請調整起始節次或連調節數！</div>`;
+                return;
+            }
 
-            let okA = (cA_SlotB === "空");
-            let okB = (cB_SlotA === "空");
+            let conflictsA = [];
+            let conflictsB = [];
+            let detailA = [], detailB = [];
 
-            let html = `<div><b>【雙向調課可行性試算】</b></div>`;
-            html += `<div style="margin-top:4px;">👤 <b>${tA}</b>：週${dayA}第${pA+1}節 [${cA_SlotA}]</div>`;
-            html += `<div>👤 <b>${tB}</b>：週${dayB}第${pB+1}節 [${cB_SlotB}]</div>`;
+            for (let i = 0; i < count; i++) {
+                let pA = startA + i;
+                let pB = startB + i;
 
-            if (okA && okB) {
-                html += `<div class="swap-card"><div style="color:var(--success); font-weight:bold;">✅ 雙向調課可行！</div><div style="font-size:0.82rem; margin-top:4px;">• ${tA} 在 週${dayB}第${pB+1}節 為空堂<br>• ${tB} 在 週${dayA}第${pA+1}節 為空堂</div></div>`;
+                let courseA_in_SlotA = fullSchedule[tA][dayA][pA];
+                let courseA_in_SlotB = fullSchedule[tA][dayB][pB];
+                detailA.push(`第${pA+1}節[${courseA_in_SlotA}] ➔ 移至 週${dayB}第${pB+1}節`);
+
+                if (courseA_in_SlotB !== "空") {
+                    conflictsA.push(`週${dayB}第${pB+1}節已有課[${courseA_in_SlotB}]`);
+                }
+
+                let courseB_in_SlotB = fullSchedule[tB][dayB][pB];
+                let courseB_in_SlotA = fullSchedule[tB][dayA][pA];
+                detailB.push(`第${pB+1}節[${courseB_in_SlotB}] ➔ 移至 週${dayA}第${pA+1}節`);
+
+                if (courseB_in_SlotA !== "空") {
+                    conflictsB.push(`週${dayA}第${pA+1}節已有課[${courseB_in_SlotA}]`);
+                }
+            }
+
+            let rangeA_str = count === 1 ? `第 ${startA+1} 節` : `第 ${startA+1} ~ ${startA+count} 節 (${count}節)`;
+            let rangeB_str = count === 1 ? `第 ${startB+1} 節` : `第 ${startB+1} ~ ${startB+count} 節 (${count}節)`;
+
+            let html = `<div><b>【連調區間可行性評估】</b></div>`;
+            html += `<div style="margin-top:4px;">👤 <b>${tA}</b>：週${dayA} ${rangeA_str}</div>`;
+            html += `<div>👤 <b>${tB}</b>：週${dayB} ${rangeB_str}</div>`;
+
+            if (conflictsA.length === 0 && conflictsB.length === 0) {
+                html += `<div class="swap-card">
+                    <div style="color:var(--success); font-weight:bold;">✅ 多節/區間連調完全可行！</div>
+                    <div style="font-size:0.82rem; margin-top:6px;">
+                        <b>連調細節：</b><br>
+                        • ${tA} 老師：${detailA.join('；')}<br>
+                        • ${tB} 老師：${detailB.join('；')}
+                    </div>
+                </div>`;
             } else {
-                html += `<div class="error-card"><div style="color:#e11d48; font-weight:bold;">⚠️ 時間衝突警告：</div><div style="font-size:0.82rem; margin-top:4px;">${!okA ? `• ${tA} 在週${dayB}第${pB+1}節 已有課 [${cA_SlotB}]<br>` : ''}${!okB ? `• ${tB} 在週${dayA}第${pA+1}節 已有課 [${cB_SlotA}]<br>` : ''}</div></div>`;
+                html += `<div class="error-card">
+                    <div style="color:#e11d48; font-weight:bold;">⚠️ 區間連調時間衝突：</div>
+                    <div style="font-size:0.82rem; margin-top:4px;">
+                        ${conflictsA.length > 0 ? `• <b>${tA}</b> 衝突：${conflictsA.join('、')}<br>` : ''}
+                        ${conflictsB.length > 0 ? `• <b>${tB}</b> 衝突：${conflictsB.join('、')}` : ''}
+                    </div>
+                </div>`;
             }
             res.innerHTML = html;
         }
@@ -512,14 +563,49 @@
             }
         }
 
+        // PWA Service Worker 註冊與動態快取
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final-teacher-view-v1').then(c => c.addAll(['./']))));
-                    self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+                    const CACHE_NAME = 'pwa-schedule-v3';
+                    self.addEventListener('install', event => {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME).then(cache => {
+                                return cache.addAll(['./']);
+                            })
+                        );
+                        self.skipWaiting();
+                    });
+                    self.addEventListener('activate', event => {
+                        event.waitUntil(
+                            caches.keys().then(keys => {
+                                return Promise.all(
+                                    keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+                                );
+                            })
+                        );
+                        self.clients.claim();
+                    });
+                    self.addEventListener('fetch', event => {
+                        event.respondWith(
+                            caches.match(event.request).then(cachedResponse => {
+                                if (cachedResponse) {
+                                    fetch(event.request).then(networkResponse => {
+                                        if (networkResponse.status === 200) {
+                                            caches.open(CACHE_NAME).then(cache => cache.put(event.request, networkResponse));
+                                        }
+                                    }).catch(() => {});
+                                    return cachedResponse;
+                                }
+                                return fetch(event.request);
+                            })
+                        );
+                    });
                 `;
                 const blob = new Blob([swCode], { type: 'application/javascript' });
-                navigator.serviceWorker.register(URL.createObjectURL(blob));
+                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => {
+                    console.log('SW registration failed: ', err);
+                });
             });
         }
     </script>
