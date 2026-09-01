@@ -47,7 +47,6 @@
         .schedule-table th { background-color: #334155; color: white; font-weight: bold; }
         .cell-free { background-color: #f0fdf4; color: #166534; font-weight: 500; }
         .cell-busy { background-color: #eff6ff; color: #1e40af; font-weight: bold; }
-        .cell-off { background-color: #f1f5f9; color: #94a3b8; }
     </style>
 </head>
 <body>
@@ -57,10 +56,10 @@
             <h1>115學年 課表與智慧調課 PWA</h1>
         </div>
 
-        <!-- 1. 全校視覺化總課表 (每日1~7節) -->
+        <!-- 1. 全校視覺化總課表 -->
         <div class="card">
             <div class="card-title">
-                <span>📊 1. 全校視覺化總課表（精確7節版）</span>
+                <span>📊 1. 全校視覺化總課表</span>
                 <select id="viewDaySelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
                     <option value="一">星期一</option>
                     <option value="二">星期二</option>
@@ -76,7 +75,7 @@
         <div class="card">
             <div class="card-title">🔍 2. 跨課表全域搜尋</div>
             <div class="search-box">
-                <input type="text" id="globalSearchInput" placeholder="輸入教師名(如:雅玲)、班級或科目..." oninput="liveSearch()">
+                <input type="text" id="globalSearchInput" placeholder="輸入教師名(如:幸華)、班級或科目..." oninput="liveSearch()">
             </div>
             <div id="searchResults" class="res-box" style="display:none;"></div>
         </div>
@@ -147,23 +146,65 @@
 
     <script>
         const teachersData = [
-            { name: "雅玲", role: "主任", total: 5, freeCount: 24 },
-            { name: "英曉", role: "主任", total: 5, freeCount: 24 },
-            { name: "幸華", role: "二甲導師", total: 13, freeCount: 16 },
-            { name: "凱棋", role: "一甲導師", total: 14, freeCount: 15 },
-            { name: "瑞明", role: "三甲導師", total: 16, freeCount: 13 },
-            { name: "于玲", role: "四甲導師", total: 16, freeCount: 13 },
-            { name: "惠雅", role: "五甲導師", total: 16, freeCount: 13 },
-            { name: "怡文", role: "六甲導師", total: 16, freeCount: 13 },
-            { name: "瑞芳", role: "美勞科任", total: 10, freeCount: 19 },
-            { name: "昭倫", role: "體自科任", total: 20, freeCount: 9 },
-            { name: "永芝", role: "英音科任", total: 20, freeCount: 9 },
-            { name: "美純", role: "鐘點教師", total: 13, freeCount: 16 },
-            { name: "高雄", role: "台語教師", total: 4, freeCount: 25 }
+            { name: "幸華", role: "二甲導師", total: 13 },
+            { name: "凱棋", role: "一甲導師", total: 14 },
+            { name: "瑞明", role: "三甲導師", total: 16 },
+            { name: "于玲", role: "四甲導師", total: 16 },
+            { name: "惠雅", role: "五甲導師", total: 16 },
+            { name: "怡文", role: "六甲導師", total: 16 },
+            { name: "雅玲", role: "主任", total: 5 },
+            { name: "英曉", role: "主任", total: 5 },
+            { name: "瑞芳", role: "美勞科任", total: 10 },
+            { name: "昭倫", role: "體自科任", total: 20 },
+            { name: "永芝", role: "英音科任", total: 20 },
+            { name: "美純", role: "鐘點教師", total: 13 },
+            { name: "高雄", role: "台語教師", total: 4 }
         ];
 
-        // 全校 13 位教師、週一至週五每天精確 7 節之矩陣資料
+        // 依據相片逐張單一校對之精準陣列數據
         const fullSchedule = {
+            "幸華": {
+                "一": ["空", "二數", "空", "二國", "空", "空", "空"],
+                "二": ["空", "空", "二美", "二國", "空", "空", "空"],
+                "三": ["空", "二數", "二國", "二國", "空", "空", "空"],
+                "四": ["二彈", "空", "二數", "二國", "二美", "空", "空"],
+                "五": ["空", "二數", "二國", "空", "空", "空", "空"]
+            },
+            "凱棋": {
+                "一": ["空", "一數", "一國", "一國", "空", "空", "空"],
+                "二": ["一數", "空", "一彈", "空", "空", "空", "空"],
+                "三": ["空", "空", "一活", "一國", "空", "空", "空"],
+                "四": ["一國", "一數", "空", "空", "空", "一活", "空"],
+                "五": ["一數", "一活", "一國", "一國", "空", "空", "空"]
+            },
+            "瑞明": {
+                "一": ["三數", "三國", "三國", "空", "空", "三健", "三彈"],
+                "二": ["三數", "空", "三彈", "空", "三美", "三美", "空"],
+                "三": ["空", "三國", "空", "空", "空", "空", "空"],
+                "四": ["三彈", "三數", "三國", "空", "三國", "空", "三資"],
+                "五": ["三數", "空", "空", "空", "空", "空", "空"]
+            },
+            "于玲": {
+                "一": ["二鄉", "空", "四國", "空", "四彈", "四數", "四體"],
+                "二": ["四國", "四數", "四彈", "四鄉", "空", "空", "四體"],
+                "三": ["四數", "空", "空", "空", "空", "空", "空"],
+                "四": ["四彈", "空", "四國", "空", "空", "空", "空"],
+                "五": ["四數", "四國", "空", "四國", "空", "空", "空"]
+            },
+            "惠雅": {
+                "一": ["空", "空", "空", "空", "五國", "空", "空"],
+                "二": ["五數", "五國", "五彈", "空", "空", "五美", "五美"],
+                "三": ["五數", "五國", "空", "空", "空", "空", "空"],
+                "四": ["五彈", "五數", "空", "五國", "空", "五彈", "五彈"],
+                "五": ["五數", "空", "空", "五國", "空", "五彈", "空"]
+            },
+            "怡文": {
+                "一": ["六數", "空", "六國", "六國", "空", "空", "空"],
+                "二": ["空", "六數", "六彈", "六國", "空", "六美", "六美"],
+                "三": ["六數", "空", "空", "空", "空", "空", "空"],
+                "四": ["六彈", "六國", "空", "空", "六彈", "六彈", "空"],
+                "五": ["空", "空", "六數", "六國", "空", "空", "六彈"]
+            },
             "雅玲": {
                 "一": ["空", "四社", "空", "空", "空", "空", "空"],
                 "二": ["空", "空", "空", "空", "空", "空", "空"],
@@ -172,86 +213,44 @@
                 "五": ["空", "空", "空", "空", "空", "空", "空"]
             },
             "英曉": {
-                "一": ["五自", "五自", "空", "空", "空", "空", "六體"],
+                "一": ["五自", "五自", "空", "空", "空", "空", "空"],
                 "二": ["空", "空", "空", "空", "空", "空", "空"],
                 "三": ["空", "空", "空", "空", "空", "空", "空"],
-                "四": ["空", "空", "空", "四甲", "空", "空", "四體"],
-                "五": ["自然", "自然", "空", "空", "自然", "體育", "六甲"]
-            },
-            "幸華": {
-                "一": ["空", "空", "空", "二國", "放學", "放學", "放學"],
-                "二": ["數學", "空", "二國", "二國", "美勞", "美勞", "空"],
-                "三": ["數學", "國語", "國語", "國語", "放學", "放學", "放學"],
-                "四": ["彈性", "國語", "美勞", "美勞", "放學", "放學", "放學"],
-                "五": ["數學", "數學", "國語", "國語", "放學", "放學", "放學"]
-            },
-            "凱棋": {
-                "一": ["空", "空", "一國", "一國", "放學", "放學", "放學"],
-                "二": ["國語", "數學", "空", "國語", "空", "生活", "空"],
-                "三": ["國語", "生活", "生活", "國語", "放學", "放學", "放學"],
-                "四": ["數學", "國語", "彈一", "國語", "放學", "放學", "放學"],
-                "五": ["數學", "數學", "國語", "國語", "放學", "放學", "放學"]
-            },
-            "瑞明": {
-                "一": ["三數", "三國", "三國", "空", "空", "健康", "彈性"],
-                "二": ["三數", "國語", "彈性", "空", "美勞", "美勞", "彈性"],
-                "三": ["數學", "國語", "國語", "空", "空", "空", "空"],
-                "四": ["數學", "國語", "國語", "空", "國語", "美勞", "資彈"],
-                "五": ["數學", "國語", "國語", "空", "國語", "空", "資彈"]
-            },
-            "于玲": {
-                "一": ["二鄉", "空", "四國", "空", "彈性", "數學", "體育"],
-                "二": ["四國", "數學", "國語", "鄉土", "空", "空", "體育"],
-                "三": ["數學", "國語", "彈性", "國語", "空", "空", "空"],
-                "四": ["彈性", "空", "國語", "國語", "彈性", "數學", "體育"],
-                "五": ["數學", "國語", "國語", "四甲", "空", "空", "空"]
-            },
-            "惠雅": {
-                "一": ["空", "空", "空", "國語", "國語", "美勞", "美勞"],
-                "二": ["五數", "國語", "彈性", "空", "空", "美勞", "美勞"],
-                "三": ["數學", "國語", "空", "空", "空", "空", "空"],
-                "四": ["彈性", "國語", "空", "空", "彈性", "彈性", "彈性"],
-                "五": ["數學", "國語", "空", "國語", "彈性", "美勞", "美勞"]
-            },
-            "怡文": {
-                "一": ["六數", "空", "國語", "國語", "空", "彈性", "美勞"],
-                "二": ["數學", "空", "彈性", "國語", "空", "彈性", "美勞"],
-                "三": ["數學", "國語", "國語", "國語", "空", "空", "空"],
-                "四": ["數學", "空", "彈性", "國語", "空", "彈性", "美勞"],
-                "五": ["彈性", "國語", "數學", "國語", "彈性", "彈性", "彈性"]
+                "四": ["空", "空", "空", "空", "空", "空", "六體"],
+                "五": ["空", "空", "空", "空", "五自", "六體", "空"]
             },
             "瑞芳": {
-                "一": ["空", "空", "三社", "三社", "空", "空", "六音"],
-                "二": ["空", "空", "自然", "音樂", "音樂", "社", "空"],
-                "三": ["空", "空", "自然", "音樂", "空", "空", "空"],
-                "四": ["空", "四甲", "音樂", "四甲", "英語", "英語", "資彈"],
-                "五": ["空", "空", "音樂", "音樂", "音樂", "音樂", "空"]
+                "一": ["空", "空", "空", "三社", "三音", "空", "六音"],
+                "二": ["空", "空", "空", "三社", "空", "空", "空"],
+                "三": ["空", "空", "六自", "五音", "空", "空", "空"],
+                "四": ["空", "空", "空", "四音", "空", "空", "空"],
+                "五": ["六自", "六自", "三社", "空", "空", "空", "空"]
             },
             "昭倫": {
-                "一": ["一體", "體育", "體育", "社會", "一音", "空", "一體"],
-                "二": ["體育", "綜合", "體育", "社會", "社會", "體育", "體育"],
-                "三": ["自然", "彈一", "體育", "自然", "空", "空", "空"],
-                "四": ["彈三", "體育", "五甲", "社會", "健康", "美勞", "體育"],
-                "五": ["體育", "綜合", "體育", "社會", "美勞", "美勞", "空"]
+                "一": ["空", "空", "五綜", "五社", "六資", "五綜", "五體"],
+                "二": ["空", "一體", "空", "空", "四美", "四美", "空"],
+                "三": ["三自", "一彈", "空", "空", "空", "空", "空"],
+                "四": ["空", "二健", "五體", "三自", "一音", "二音", "一體"],
+                "五": ["空", "五社", "五社", "三自", "六健", "空", "空"]
             },
             "永芝": {
-                "一": ["四健", "綜合", "體育", "綜合", "空", "六社", "空"],
-                "二": ["社會", "英語", "英語", "社會", "英語", "空", "空"],
-                "三": ["健康", "綜合", "空", "綜合", "空", "空", "空"],
-                "四": ["社會", "英語", "體育", "社會", "英語", "綜合", "空"],
-                "五": ["英語", "綜合", "空", "英語", "英語", "綜合", "體育"]
+                "一": ["四健", "六綜", "二體", "四綜", "空", "六社", "空"],
+                "二": ["六社", "三英", "空", "五英", "六英", "空", "空"],
+                "三": ["空", "空", "空", "六社", "空", "空", "空"],
+                "四": ["空", "四英", "六英", "六綜", "五英", "三綜", "二體"],
+                "五": ["二彈", "三綜", "四綜", "二彈", "空", "空", "空"]
             },
             "美純": {
-                "一": ["一健", "空", "空", "二彈", "空", "空", "空"],
-                "二": ["生活", "生活", "二甲", "自然", "五甲", "空", "體育"],
-                "三": ["生活", "空", "體育", "空", "空", "空", "空"],
-                "四": ["健康", "空", "四甲", "體育", "自然", "空", "資彈"],
-                "五": ["空", "生活", "空", "四甲", "四甲", "空", "資彈"]
+                "一": ["一健", "空", "空", "空", "空", "空", "空"],
+                "二": ["二活", "二活", "空", "一彈", "五健", "空", "三體"],
+                "三": ["二活", "空", "三體", "四自", "空", "空", "空"],
+                "四": ["空", "空", "空", "空", "四自", "四自", "四資"],
+                "五": ["空", "空", "空", "空", "空", "空", "五資"]
             },
             "高雄": {
-                "一": ["一鄉", "空", "空", "空", "空", "空", "空"],
+                "一": ["空", "空", "空", "空", "空", "空", "空"],
                 "二": ["空", "空", "空", "空", "空", "空", "空"],
-                "三": ["鄉土", "鄉土", "鄉土", "鄉土", "空", "空", "空"],
+                "三": ["一鄉", "六鄉", "五鄉", "三鄉", "空", "空", "空"],
                 "四": ["空", "空", "空", "空", "空", "空", "空"],
                 "五": ["空", "空", "空", "空", "空", "空", "空"]
             }
@@ -282,10 +281,7 @@
                 
                 for(let p = 0; p < 7; p++) {
                     const c = dayCourses[p] || "空";
-                    let cellClass = "cell-busy";
-                    if (c === "空") cellClass = "cell-free";
-                    else if (c === "放學") cellClass = "cell-off";
-                    
+                    let cellClass = (c === "空") ? "cell-free" : "cell-busy";
                     html += `<td class="${cellClass}">${c}</td>`;
                 }
                 html += `</tr>`;
@@ -299,7 +295,22 @@
             const query = document.getElementById('globalSearchInput').value.trim().toLowerCase();
             const res = document.getElementById('searchResults');
             if(!query) { res.style.display = 'none'; return; }
-            const matched = teachersData.filter(t => t.name.includes(query) || t.role.includes(query));
+            
+            let matched = [];
+            teachersData.forEach(t => {
+                let hitDays = [];
+                ["一", "二", "三", "四", "五"].forEach(day => {
+                    fullSchedule[t.name][day].forEach((c, idx) => {
+                        if (c.toLowerCase().includes(query)) {
+                            hitDays.push(`週${day}第${idx+1}節[${c}]`);
+                        }
+                    });
+                });
+                if (t.name.includes(query) || t.role.includes(query) || hitDays.length > 0) {
+                    matched.push({ ...t, hits: hitDays });
+                }
+            });
+
             res.style.display = 'block';
             if(matched.length === 0) {
                 res.innerHTML = `<div style="color:#64748b; text-align:center;">無此關鍵字資料</div>`;
@@ -307,7 +318,8 @@
             }
             let html = ``;
             matched.forEach(t => {
-                html += `<div class="item-row"><div><b>${t.name}</b> (${t.role})<br><span style="font-size:0.78rem; color:#64748b;">授課: ${t.total} 節 | 理論空堂: ${t.freeCount} 節</span></div><span class="tag tag-info">對照完成</span></div>`;
+                let hitText = t.hits.length > 0 ? `<br><span style="font-size:0.75rem; color:#2563eb;">匹配課表: ${t.hits.join(', ')}</span>` : '';
+                html += `<div class="item-row"><div><b>${t.name}</b> (${t.role})${hitText}</div><span class="tag tag-info">每週${t.total}節</span></div>`;
             });
             res.innerHTML = html;
         }
@@ -319,7 +331,7 @@
             let freeList = [], busyList = [];
             teachersData.forEach(t => {
                 const course = fullSchedule[t.name][day][period];
-                if (course === "空" || course === "放學") freeList.push({ name: t.name, role: t.role, status: course });
+                if (course === "空") freeList.push({ name: t.name, role: t.role });
                 else busyList.push({ name: t.name, course: course });
             });
             res.style.display = 'block';
@@ -355,15 +367,15 @@
             const cB_SlotB = fullSchedule[tB][dayB][pB];
             const cB_SlotA = fullSchedule[tB][dayA][pA];
 
-            let okA = (cA_SlotB === "空" || cA_SlotB === "放學");
-            let okB = (cB_SlotA === "空" || cB_SlotA === "放學");
+            let okA = (cA_SlotB === "空");
+            let okB = (cB_SlotA === "空");
 
-            let html = `<div><b>【互調可行性試算】</b></div>`;
+            let html = `<div><b>【雙向調課可行性試算】</b></div>`;
             html += `<div style="margin-top:4px;">👤 <b>${tA}</b>：週${dayA}第${pA+1}節 [${cA_SlotA}]</div>`;
             html += `<div>👤 <b>${tB}</b>：週${dayB}第${pB+1}節 [${cB_SlotB}]</div>`;
 
             if (okA && okB) {
-                html += `<div class="swap-card"><div style="color:var(--success); font-weight:bold;">✅ 雙向調課可行！</div><div style="font-size:0.82rem; margin-top:4px;">• ${tA} 週${dayB}第${pB+1}節 為空堂<br>• ${tB} 週${dayA}第${pA+1}節 為空堂</div></div>`;
+                html += `<div class="swap-card"><div style="color:var(--success); font-weight:bold;">✅ 雙向調課可行！</div><div style="font-size:0.82rem; margin-top:4px;">• ${tA} 在 週${dayB}第${pB+1}節 為空堂<br>• ${tB} 在 週${dayA}第${pA+1}節 為空堂</div></div>`;
             } else {
                 html += `<div class="error-card"><div style="color:#e11d48; font-weight:bold;">⚠️ 時間衝突警告：</div><div style="font-size:0.82rem; margin-top:4px;">${!okA ? `• ${tA} 在週${dayB}第${pB+1}節 已有課 [${cA_SlotB}]<br>` : ''}${!okB ? `• ${tB} 在週${dayA}第${pA+1}節 已有課 [${cB_SlotA}]<br>` : ''}</div></div>`;
             }
@@ -373,7 +385,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-full-7periods-v1').then(c => c.addAll(['./']))));
+                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final-verified-v1').then(c => c.addAll(['./']))));
                     self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
                 `;
                 const blob = new Blob([swCode], { type: 'application/javascript' });
