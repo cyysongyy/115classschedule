@@ -19,7 +19,7 @@
         .app-header h1 { font-size: 1.25rem; margin: 0; color: #1e293b; }
         
         .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-        .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #334155; display: flex; align-items: center; justify-content: space-between; }
+        .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #334155; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
         
         .form-group { margin-bottom: 8px; }
         .form-label { font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px; }
@@ -62,17 +62,22 @@
             <h1>115學年 課表與智慧調課 PWA</h1>
         </div>
 
-        <!-- 1. 全校視覺化總課表 -->
+        <!-- 1. 全校 / 個人視覺化課表 -->
         <div class="card">
             <div class="card-title">
-                <span>📊 1. 全校視覺化總課表 <small style="font-size:0.7rem; font-weight:normal; color:#64748b;">(點擊儲存格可修改)</small></span>
-                <select id="viewDaySelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
-                    <option value="一">星期一</option>
-                    <option value="二">星期二</option>
-                    <option value="三">星期三</option>
-                    <option value="四">星期四</option>
-                    <option value="五">星期五</option>
-                </select>
+                <span>📊 1. 視覺化課表 <small style="font-size:0.7rem; font-weight:normal; color:#64748b;">(點擊儲存格可修改)</small></span>
+                <div style="display:flex; gap:6px;">
+                    <select id="viewTeacherSelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
+                        <option value="ALL">全校教師</option>
+                    </select>
+                    <select id="viewDaySelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
+                        <option value="一">星期一</option>
+                        <option value="二">星期二</option>
+                        <option value="三">星期三</option>
+                        <option value="四">星期四</option>
+                        <option value="五">星期五</option>
+                    </select>
+                </div>
             </div>
             <div id="visualTableContainer" class="table-responsive"></div>
         </div>
@@ -290,37 +295,71 @@
         }
 
         window.onload = function() {
-            renderVisualSchedule();
+            const viewTeacherSel = document.getElementById('viewTeacherSelect');
             const selectA = document.getElementById('teacherA');
             const selectB = document.getElementById('teacherB');
+            
             teachersData.forEach(t => {
+                viewTeacherSel.add(new Option(`${t.name} (${t.role})`, t.name));
                 selectA.add(new Option(`${t.name} (${t.role})`, t.name));
                 selectB.add(new Option(`${t.name} (${t.role})`, t.name));
             });
             selectB.selectedIndex = 1;
+            renderVisualSchedule();
         };
 
         function renderVisualSchedule() {
-            const selectedDay = document.getElementById('viewDaySelect').value;
+            const selectedTeacher = document.getElementById('viewTeacherSelect').value;
+            const selectedDaySelect = document.getElementById('viewDaySelect');
             const container = document.getElementById('visualTableContainer');
             
-            let html = `<table class="schedule-table"><thead><tr><th>教師</th>`;
-            for(let p = 1; p <= 7; p++) html += `<th>第${p}節</th>`;
-            html += `</tr></thead><tbody>`;
+            let html = ``;
 
-            teachersData.forEach(t => {
-                html += `<tr><td><b>${t.name}</b><br><small style="color:#64748b;">${t.role}</small></td>`;
-                const dayCourses = fullSchedule[t.name][selectedDay] || ["空","空","空","空","空","空","空"];
+            if (selectedTeacher === "ALL") {
+                // 全校視角：依單一星期顯示所有人
+                selectedDaySelect.style.display = "inline-block";
+                const selectedDay = selectedDaySelect.value;
                 
-                for(let p = 0; p < 7; p++) {
-                    const c = dayCourses[p] || "空";
-                    let cellClass = (c === "空") ? "cell-free" : "cell-busy";
-                    html += `<td class="${cellClass}" onclick="editCell('${t.name}', '${selectedDay}', ${p}, '${c}')">${c}</td>`;
-                }
-                html += `</tr>`;
-            });
+                html += `<table class="schedule-table"><thead><tr><th>教師</th>`;
+                for(let p = 1; p <= 7; p++) html += `<th>第${p}節</th>`;
+                html += `</tr></thead><tbody>`;
 
-            html += `</tbody></table>`;
+                teachersData.forEach(t => {
+                    html += `<tr><td><b>${t.name}</b><br><small style="color:#64748b;">${t.role}</small></td>`;
+                    const dayCourses = fullSchedule[t.name][selectedDay] || ["空","空","空","空","空","空","空"];
+                    
+                    for(let p = 0; p < 7; p++) {
+                        const c = dayCourses[p] || "空";
+                        let cellClass = (c === "空") ? "cell-free" : "cell-busy";
+                        html += `<td class="${cellClass}" onclick="editCell('${t.name}', '${selectedDay}', ${p}, '${c}')">${c}</td>`;
+                    }
+                    html += `</tr>`;
+                });
+                html += `</tbody></table>`;
+            } else {
+                // 個人視角：隱藏星期選單，直接列出個人全週（週一~週五）課表
+                selectedDaySelect.style.display = "none";
+                const teacherObj = teachersData.find(t => t.name === selectedTeacher);
+                const days = ["一", "二", "三", "四", "五"];
+
+                html += `<div style="margin-bottom:6px; font-weight:bold; color:#1e293b;">👤 ${selectedTeacher} 老師全週個人課表 <small style="color:#64748b;">(${teacherObj ? teacherObj.role : ''})</small></div>`;
+                html += `<table class="schedule-table"><thead><tr><th>星期 / 節次</th>`;
+                for(let p = 1; p <= 7; p++) html += `<th>第${p}節</th>`;
+                html += `</tr></thead><tbody>`;
+
+                days.forEach(day => {
+                    html += `<tr><td><b>星期${day}</b></td>`;
+                    const dayCourses = fullSchedule[selectedTeacher][day] || ["空","空","空","空","空","空","空"];
+                    for(let p = 0; p < 7; p++) {
+                        const c = dayCourses[p] || "空";
+                        let cellClass = (c === "空") ? "cell-free" : "cell-busy";
+                        html += `<td class="${cellClass}" onclick="editCell('${selectedTeacher}', '${day}', ${p}, '${c}')">${c}</td>`;
+                    }
+                    html += `</tr>`;
+                });
+                html += `</tbody></table>`;
+            }
+
             container.innerHTML = html;
         }
 
@@ -476,7 +515,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final-search-v1').then(c => c.addAll(['./']))));
+                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final-teacher-view-v1').then(c => c.addAll(['./']))));
                     self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
                 `;
                 const blob = new Blob([swCode], { type: 'application/javascript' });
