@@ -45,8 +45,11 @@
         .schedule-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.75rem; min-width: 650px; }
         .schedule-table th, .schedule-table td { border: 1px solid #e2e8f0; padding: 6px 2px; }
         .schedule-table th { background-color: #334155; color: white; font-weight: bold; }
-        .cell-free { background-color: #f0fdf4; color: #166534; font-weight: 500; }
-        .cell-busy { background-color: #eff6ff; color: #1e40af; font-weight: bold; }
+        .cell-free { background-color: #f0fdf4; color: #166534; font-weight: 500; cursor: pointer; }
+        .cell-busy { background-color: #eff6ff; color: #1e40af; font-weight: bold; cursor: pointer; }
+        
+        .btn-secondary { background: #64748b; }
+        .btn-danger { background: #ef4444; }
     </style>
 </head>
 <body>
@@ -59,7 +62,7 @@
         <!-- 1. 全校視覺化總課表 -->
         <div class="card">
             <div class="card-title">
-                <span>📊 1. 全校視覺化總課表</span>
+                <span>📊 1. 全校視覺化總課表 <small style="font-size:0.7rem; font-weight:normal; color:#64748b;">(點擊儲存格可修改)</small></span>
                 <select id="viewDaySelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
                     <option value="一">星期一</option>
                     <option value="二">星期二</option>
@@ -142,6 +145,17 @@
             <button onclick="checkSwap()" style="background:var(--success);">開始評估互調可行性</button>
             <div id="swapResults" class="res-box" style="display:none;"></div>
         </div>
+
+        <!-- 5. 課表維護與資料同步 -->
+        <div class="card">
+            <div class="card-title">⚙️ 5. 資料備份與同步管理</div>
+            <div class="grid-2">
+                <button onclick="exportData()" class="btn-secondary">📥 匯出 JSON 備份檔</button>
+                <button onclick="document.getElementById('importFileInput').click()" class="btn-secondary">📤 匯入 JSON 備份檔</button>
+            </div>
+            <input type="file" id="importFileInput" style="display:none;" accept=".json" onchange="importData(event)">
+            <button onclick="resetData()" class="btn-danger" style="margin-top:8px;">🔄 還原為校對預設值</button>
+        </div>
     </div>
 
     <script>
@@ -161,8 +175,7 @@
             { name: "高雄", role: "台語教師", total: 4 }
         ];
 
-        // 依據相片逐張單一校對之精準陣列數據
-        const fullSchedule = {
+        const defaultSchedule = {
             "幸華": {
                 "一": ["空", "二數", "空", "二國", "空", "空", "空"],
                 "二": ["空", "空", "二美", "二國", "空", "空", "空"],
@@ -256,6 +269,12 @@
             }
         };
 
+        let fullSchedule = JSON.parse(localStorage.getItem('school_schedule_data')) || defaultSchedule;
+
+        function saveToStorage() {
+            localStorage.setItem('school_schedule_data', JSON.stringify(fullSchedule));
+        }
+
         window.onload = function() {
             renderVisualSchedule();
             const selectA = document.getElementById('teacherA');
@@ -282,13 +301,60 @@
                 for(let p = 0; p < 7; p++) {
                     const c = dayCourses[p] || "空";
                     let cellClass = (c === "空") ? "cell-free" : "cell-busy";
-                    html += `<td class="${cellClass}">${c}</td>`;
+                    html += `<td class="${cellClass}" onclick="editCell('${t.name}', '${selectedDay}', ${p}, '${c}')">${c}</td>`;
                 }
                 html += `</tr>`;
             });
 
             html += `</tbody></table>`;
             container.innerHTML = html;
+        }
+
+        function editCell(teacher, day, periodIndex, currentVal) {
+            const newVal = prompt(`修改 ${teacher} 老師 (週${day} 第${periodIndex + 1}節) 課程：`, currentVal);
+            if (newVal !== null) {
+                const formattedVal = newVal.trim() === "" ? "空" : newVal.trim();
+                fullSchedule[teacher][day][periodIndex] = formattedVal;
+                saveToStorage();
+                renderVisualSchedule();
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullSchedule, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `課表備份_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedSchedule = JSON.parse(e.target.result);
+                    fullSchedule = importedSchedule;
+                    saveToStorage();
+                    renderVisualSchedule();
+                    alert("✅ 課表資料匯入成功！");
+                } catch (err) {
+                    alert("⚠️ 檔案格式錯誤，匯入失敗。");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetData() {
+            if (confirm("確定要將所有課表還原為當初校對的預設值嗎？")) {
+                fullSchedule = JSON.parse(JSON.stringify(defaultSchedule));
+                saveToStorage();
+                renderVisualSchedule();
+                alert("已成功還原預設課表！");
+            }
         }
 
         function liveSearch() {
@@ -385,7 +451,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final-verified-v1').then(c => c.addAll(['./']))));
+                    self.addEventListener('install', e => e.waitUntil(caches.open('pwa-final-editable-v1').then(c => c.addAll(['./']))));
                     self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
                 `;
                 const blob = new Blob([swCode], { type: 'application/javascript' });
