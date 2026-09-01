@@ -55,6 +55,7 @@
         
         .btn-secondary { background: #64748b; }
         .btn-danger { background: #ef4444; }
+        .btn-auto { background: #0284c7; font-size: 0.82rem; padding: 6px 10px; margin-top: 4px; }
         
         .quick-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
         .quick-tag-btn { width: auto; padding: 4px 10px; font-size: 0.78rem; background: #e2e8f0; color: #334155; border-radius: 12px; margin: 0; font-weight: normal; }
@@ -142,15 +143,15 @@
             
             <div class="form-group">
                 <span class="form-label">發起教師與連調時段：</span>
-                <select id="teacherA"></select>
+                <select id="teacherA" onchange="autoFilterTargetTeachers()"></select>
                 <div class="grid-3" style="margin-top:6px;">
-                    <select id="dayA">
+                    <select id="dayA" onchange="autoFilterTargetTeachers()">
                         <option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option>
                     </select>
-                    <select id="periodA">
+                    <select id="periodA" onchange="autoFilterTargetTeachers()">
                         <option value="1">起：第1節</option><option value="2">起：第2節</option><option value="3">起：第3節</option><option value="4">起：第4節</option><option value="5">起：第5節</option><option value="6">起：第6節</option><option value="7">起：第7節</option>
                     </select>
-                    <select id="countA">
+                    <select id="countA" onchange="autoFilterTargetTeachers()">
                         <option value="1">連續 1 節</option>
                         <option value="2">連續 2 節</option>
                         <option value="3">連續 3 節</option>
@@ -160,8 +161,11 @@
             </div>
 
             <div class="form-group" style="margin-top:10px;">
-                <span class="form-label">目標對調教師與目標時段：</span>
-                <select id="teacherB"></select>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="form-label">目標對調教師與目標時段：</span>
+                    <button type="button" class="btn-auto" onclick="autoFilterTargetTeachers()">⚡ 自動篩選空堂教師</button>
+                </div>
+                <select id="teacherB" style="margin-top:4px;"></select>
                 <div class="grid-3" style="margin-top:6px;">
                     <select id="dayB">
                         <option value="一">星期一</option><option value="二">星期二</option><option value="三">星期三</option><option value="四">星期四</option><option value="五">星期五</option>
@@ -309,16 +313,72 @@
         window.onload = function() {
             const viewTeacherSel = document.getElementById('viewTeacherSelect');
             const selectA = document.getElementById('teacherA');
-            const selectB = document.getElementById('teacherB');
             
             teachersData.forEach(t => {
                 viewTeacherSel.add(new Option(`${t.name} (${t.role})`, t.name));
                 selectA.add(new Option(`${t.name} (${t.role})`, t.name));
-                selectB.add(new Option(`${t.name} (${t.role})`, t.name));
             });
-            selectB.selectedIndex = 1;
             renderVisualSchedule();
+            autoFilterTargetTeachers();
         };
+
+        function autoFilterTargetTeachers() {
+            const tA = document.getElementById('teacherA').value;
+            const dayA = document.getElementById('dayA').value;
+            const startA = parseInt(document.getElementById('periodA').value) - 1;
+            const count = parseInt(document.getElementById('countA').value);
+
+            const selectB = document.getElementById('teacherB');
+            const currentSelectedB = selectB.value;
+            selectB.innerHTML = '';
+
+            let freeTeachers = [];
+            let busyTeachers = [];
+
+            teachersData.forEach(t => {
+                if (t.name === tA) return;
+
+                let isFreeInBlock = true;
+                if (startA + count <= 7) {
+                    for (let i = 0; i < count; i++) {
+                        if (fullSchedule[t.name][dayA][startA + i] !== "空") {
+                            isFreeInBlock = false;
+                            break;
+                        }
+                    }
+                } else {
+                    isFreeInBlock = false;
+                }
+
+                if (isFreeInBlock) {
+                    freeTeachers.push(t);
+                } else {
+                    busyTeachers.push(t);
+                }
+            });
+
+            if (freeTeachers.length > 0) {
+                const optGroupFree = document.createElement('optgroup');
+                optGroupFree.label = "🟢 該時段完全空堂（建議對調）";
+                freeTeachers.forEach(t => {
+                    const opt = new Option(`🟢 ${t.name} (${t.role}) - 可直接對調`, t.name);
+                    optGroupFree.appendChild(opt);
+                });
+                selectB.appendChild(optGroupFree);
+            }
+
+            const optGroupBusy = document.createElement('optgroup');
+            optGroupBusy.label = "🔴 該時段已有課/需再比對";
+            busyTeachers.forEach(t => {
+                const opt = new Option(`${t.name} (${t.role})`, t.name);
+                optGroupBusy.appendChild(opt);
+            });
+            selectB.appendChild(optGroupBusy);
+
+            if (currentSelectedB && selectB.querySelector(`option[value="${currentSelectedB}"]`)) {
+                selectB.value = currentSelectedB;
+            }
+        }
 
         function renderVisualSchedule() {
             const selectedTeacher = document.getElementById('viewTeacherSelect').value;
@@ -380,6 +440,7 @@
                 fullSchedule[teacher][day][periodIndex] = formattedVal;
                 saveToStorage();
                 renderVisualSchedule();
+                autoFilterTargetTeachers();
             }
         }
 
@@ -546,6 +607,7 @@
                     fullSchedule = importedSchedule;
                     saveToStorage();
                     renderVisualSchedule();
+                    autoFilterTargetTeachers();
                     alert("✅ 課表資料匯入成功！");
                 } catch (err) {
                     alert("⚠️ 檔案格式錯誤，匯入失敗。");
@@ -559,6 +621,7 @@
                 fullSchedule = JSON.parse(JSON.stringify(defaultSchedule));
                 saveToStorage();
                 renderVisualSchedule();
+                autoFilterTargetTeachers();
                 alert("已成功還原預設課表！");
             }
         }
@@ -567,7 +630,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'pwa-schedule-v3';
+                    const CACHE_NAME = 'pwa-schedule-v4';
                     self.addEventListener('install', event => {
                         event.waitUntil(
                             caches.open(CACHE_NAME).then(cache => {
