@@ -23,7 +23,7 @@
         .app-header h1 { font-size: 1.25rem; margin: 0; color: #1e293b; }
         
         .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-        .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #334155; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+        .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #334155; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
         
         .form-group { margin-bottom: 8px; }
         .form-label { font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px; }
@@ -60,7 +60,7 @@
         .quick-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
         .quick-tag-btn { width: auto; padding: 4px 10px; font-size: 0.78rem; background: #e2e8f0; color: #334155; border-radius: 12px; margin: 0; font-weight: normal; }
         
-        .date-display-badge { font-size: 0.75rem; color: #0284c7; background: #e0f2fe; padding: 2px 8px; border-radius: 6px; font-weight: bold; }
+        .date-display-badge { font-size: 0.8rem; color: #1e40af; background: #dbeafe; padding: 3px 8px; border-radius: 6px; font-weight: bold; text-align: right; margin-bottom: 4px; display: block; }
     </style>
 </head>
 <body>
@@ -73,21 +73,22 @@
         <!-- 1. 全校 / 個人視覺化課表 -->
         <div class="card">
             <div class="card-title">
-                <div>
-                    <span>📊 1. 視覺化課表</span>
-                    <div id="currentDateDisplay" class="date-display-badge" style="margin-top:2px;"></div>
-                </div>
-                <div style="display:flex; gap:6px; align-items:center;">
-                    <select id="viewTeacherSelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
-                        <option value="ALL">全校教師</option>
-                    </select>
-                    <select id="viewDaySelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
-                        <option value="一">星期一</option>
-                        <option value="二">星期二</option>
-                        <option value="三">星期三</option>
-                        <option value="四">星期四</option>
-                        <option value="五">星期五</option>
-                    </select>
+                <div>📊 1. 視覺化課表</div>
+                <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                    <!-- 星期選單正上方顯示日期 -->
+                    <div id="currentDateDisplay" class="date-display-badge">2026年9月2日 星期三</div>
+                    <div style="display:flex; gap:6px;">
+                        <select id="viewTeacherSelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
+                            <option value="ALL">全校教師</option>
+                        </select>
+                        <select id="viewDaySelect" style="width: auto; padding: 4px 8px;" onchange="renderVisualSchedule()">
+                            <option value="一">星期一</option>
+                            <option value="二">星期二</option>
+                            <option value="三">星期三</option>
+                            <option value="四">星期四</option>
+                            <option value="五">星期五</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div id="visualTableContainer" class="table-responsive"></div>
@@ -324,7 +325,7 @@
                 selectA.add(new Option(`${t.name} (${t.role})`, t.name));
             });
 
-            // 設定今日日期與自動選擇當前星期
+            // 初始化日期與自動選擇當前星期
             initTodayDateAndDay();
 
             renderVisualSchedule();
@@ -334,17 +335,16 @@
         function initTodayDateAndDay() {
             const now = new Date();
             const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const date = String(now.getDate()).padStart(2, '0');
+            const month = now.getMonth() + 1;
+            const date = now.getDate();
             
             const dayMap = ["日", "一", "二", "三", "四", "五", "六"];
             const currentDayNum = now.getDay();
             const currentDayStr = dayMap[currentDayNum];
 
-            // 顯示日期與星期標籤
-            document.getElementById('currentDateDisplay').innerText = `今天是：${year}/${month}/${date} (${currentDayStr})`;
+            // 精準格式顯示：2026年9月2日 星期三
+            document.getElementById('currentDateDisplay').innerText = `${year}年${month}月${date}日 星期${currentDayStr}`;
 
-            // 如果是週一至週五，自動選擇對應星期；若為六或日，自動預設為星期一
             let targetDay = (currentDayNum >= 1 && currentDayNum <= 5) ? currentDayStr : "一";
 
             document.getElementById('viewDaySelect').value = targetDay;
@@ -662,7 +662,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = `
-                    const CACHE_NAME = 'pwa-schedule-v6';
+                    const CACHE_NAME = 'pwa-schedule-v7';
                     self.addEventListener('install', event => {
                         event.waitUntil(
                             caches.open(CACHE_NAME).then(cache => {
