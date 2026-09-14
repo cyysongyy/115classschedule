@@ -310,6 +310,8 @@
             }
         };
 
+        const periodTimes = ["08:40-09:20", "09:30-10:10", "10:30-11:10", "11:20-12:00", "13:30-14:10", "14:20-15:00", "15:20-16:00"];
+
         let fullSchedule = JSON.parse(localStorage.getItem('school_schedule_data')) || defaultSchedule;
 
         function saveToStorage() {
@@ -424,7 +426,7 @@
                 const selectedDay = selectedDaySelect.value;
                 
                 html += `<table class="schedule-table"><thead><tr><th>教師</th>`;
-                for(let p = 1; p <= 7; p++) html += `<th>第${p}節</th>`;
+                for(let p = 1; p <= 7; p++) html += `<th>第${p}節<br><small style="font-weight:normal;">${periodTimes[p-1]}</small></th>`;
                 html += `</tr></thead><tbody>`;
 
                 teachersData.forEach(t => {
@@ -446,7 +448,7 @@
 
                 html += `<div style="margin-bottom:6px; font-weight:bold; color:#1e293b;">👤 ${selectedTeacher} 老師全週個人課表 <small style="color:#64748b;">(${teacherObj ? teacherObj.role : ''})</small></div>`;
                 html += `<table class="schedule-table"><thead><tr><th>星期 / 節次</th>`;
-                for(let p = 1; p <= 7; p++) html += `<th>第${p}節</th>`;
+                for(let p = 1; p <= 7; p++) html += `<th>第${p}節<br><small style="font-weight:normal;">${periodTimes[p-1]}</small></th>`;
                 html += `</tr></thead><tbody>`;
 
                 days.forEach(day => {
