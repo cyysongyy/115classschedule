@@ -48,6 +48,12 @@
         .error-card { background: #fff1f2; border: 1px solid #fecdd3; padding: 10px; border-radius: 8px; margin-top: 8px; }
 
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y pinch-zoom; margin-top: 8px; }
+        .zoom-bar { display:flex; align-items:center; gap:6px; margin-top:8px; }
+        .zoom-bar button { width:auto; margin-top:0; padding:4px 14px; font-size:1rem; }
+        .zoom-bar .zoom-reset { background:#64748b; font-size:0.8rem; }
+        .zoom-bar span { font-size:0.85rem; font-weight:bold; min-width:44px; text-align:center; }
+        .zoom-bar .zoom-hint { font-weight:normal; color:#64748b; font-size:0.75rem; min-width:0; text-align:left; }
+        .table-responsive { touch-action: pan-x pan-y; }
         .schedule-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.75rem; min-width: 650px; }
         .schedule-table th, .schedule-table td { border: 1px solid #e2e8f0; padding: 6px 2px; }
         .schedule-table th { background-color: #334155; color: white; font-weight: bold; }
@@ -91,6 +97,13 @@
                         </select>
                     </div>
                 </div>
+            </div>
+            <div class="zoom-bar">
+                <button type="button" onclick="changeTableZoom(-0.15)" aria-label="縮小">－</button>
+                <span id="zoomLabel">100%</span>
+                <button type="button" onclick="changeTableZoom(0.15)" aria-label="放大">＋</button>
+                <button type="button" onclick="setTableZoom(1)" class="zoom-reset">還原</button>
+                <span class="zoom-hint">可雙指縮放</span>
             </div>
             <div id="visualTableContainer" class="table-responsive"></div>
         </div>
@@ -466,7 +479,39 @@
             }
 
             container.innerHTML = html;
+            applyTableZoom();
         }
+
+        // ===== 課表縮放（按鈕 + 雙指，不依賴瀏覽器縮放）=====
+        let tableZoom = 1;
+        try { tableZoom = parseFloat(localStorage.getItem('tableZoom')) || 1; } catch (e) {}
+        function applyTableZoom() {
+            const t = document.querySelector('#visualTableContainer .schedule-table');
+            if (t) t.style.zoom = tableZoom;
+            const l = document.getElementById('zoomLabel');
+            if (l) l.textContent = Math.round(tableZoom * 100) + '%';
+        }
+        function setTableZoom(z) {
+            tableZoom = Math.min(3, Math.max(0.5, z));
+            try { localStorage.setItem('tableZoom', tableZoom); } catch (e) {}
+            applyTableZoom();
+        }
+        function changeTableZoom(d) { setTableZoom(tableZoom + d); }
+        (function initPinchZoom() {
+            const box = document.getElementById('visualTableContainer');
+            let startDist = 0, startZoom = 1;
+            const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+            box.addEventListener('touchstart', e => {
+                if (e.touches.length === 2) { startDist = dist(e.touches); startZoom = tableZoom; }
+            }, { passive: true });
+            box.addEventListener('touchmove', e => {
+                if (e.touches.length === 2 && startDist) {
+                    e.preventDefault();
+                    setTableZoom(startZoom * dist(e.touches) / startDist);
+                }
+            }, { passive: false });
+            box.addEventListener('touchend', e => { if (e.touches.length < 2) startDist = 0; });
+        })();
 
         function editCell(teacher, day, periodIndex, currentVal) {
             const newVal = prompt(`修改 ${teacher} 老師 (週${day} 第${periodIndex + 1}節) 課程：`, currentVal);
